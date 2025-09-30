@@ -195,6 +195,11 @@
         <div class="text-center mt-10">
             <button id="preview-contract" class="bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 transition-colors">ดูตัวอย่างและสร้าง PDF</button>
         </div>
+
+        <!-- Visitor Counter -->
+        <div class="text-center mt-6 text-xs text-gray-400">
+            จำนวนผู้เข้าชม: <span id="visitor-counter">0</span>
+        </div>
     </div>
 
     <!-- =========== CONTRACT CONTENT (for PDF generation) =========== -->
@@ -214,6 +219,18 @@
     <!-- JavaScript Logic -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Visitor Counter ---
+            const updateVisitorCount = () => {
+                let count = localStorage.getItem('rentalAgreementVisitorCount');
+                count = count ? parseInt(count) + 1 : 1;
+                localStorage.setItem('rentalAgreementVisitorCount', count);
+                const counterElement = document.getElementById('visitor-counter');
+                if(counterElement) {
+                    counterElement.textContent = count;
+                }
+            };
+            updateVisitorCount();
+
             const formFields = document.querySelectorAll('.data-field');
             const roomSelect = document.getElementById('room-select');
             
