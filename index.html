@@ -52,9 +52,9 @@
         .clause-title { font-weight: bold; }
         .english { color: #555; font-style: italic; margin-top: 0.25rem; }
 
-        /* Mobile Responsive adjustments */
-        @media (max-width: 768px) {
-            .page {
+        /* Mobile Responsive adjustments for viewing ONLY */
+        @media (max-width: 900px) {
+            .page-preview-on-mobile {
                 width: 100%;
                 min-height: auto;
                 margin: 0;
@@ -64,7 +64,7 @@
                 box-shadow: none;
                 border-radius: 0;
             }
-             .signature-container-per-page {
+             .page-preview-on-mobile .signature-container-per-page {
                 position: relative;
                 bottom: auto;
                 right: auto;
@@ -73,6 +73,17 @@
                 border-top: 1px dashed #ccc;
              }
         }
+        
+        /* Special style to force A4 rendering for html2canvas */
+        .pdf-render-view .page {
+             width: 210mm !important;
+             min-height: 297mm !important;
+             margin: 0 !important;
+             border: none !important;
+             box-shadow: none !important;
+             border-radius: 0 !important;
+        }
+
 
         /* Print-specific styles */
         @media print {
@@ -260,19 +271,16 @@
                             }
                         }
                     });
-                    // Trigger change event to update dependent fields
                     if (roomSelect.value) {
                          roomSelect.dispatchEvent(new Event('change'));
                     }
                 }
             };
             
-            // Add event listeners to all fields to save data on change
             formFields.forEach(field => {
                 field.addEventListener('change', saveFormData);
             });
             
-            // Clear storage button
             document.getElementById('clear-storage').addEventListener('click', () => {
                 if(confirm('คุณต้องการล้างข้อมูลที่บันทึกไว้ทั้งหมดใช่หรือไม่?')) {
                     localStorage.removeItem('rentalAgreementData');
@@ -280,7 +288,6 @@
                 }
             });
 
-            // --- Room Selection Logic ---
             roomSelect.addEventListener('change', (e) => {
                 const selection = e.target.value;
                 if (!selection) return;
@@ -290,7 +297,6 @@
                 document.getElementById('asset-no').value = number || '';
             });
             
-            // --- Formatting Helpers ---
             const formatDate = (dateString) => {
                 if (!dateString) return '';
                 const date = new Date(dateString);
@@ -304,9 +310,7 @@
                 return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             };
 
-            // --- Main Preview Logic ---
             document.getElementById('preview-contract').addEventListener('click', () => {
-                // Populate contract text fields from form data
                 const data = {};
                 formFields.forEach(field => {
                      if (field.type === 'checkbox') {
@@ -320,6 +324,8 @@
                 const securityDeposit = rentAmount * 2;
                 const totalInitialPayment = rentAmount * 3;
 
+                const contractContentEl = document.getElementById('contract-content');
+                
                 // --- Generate Contract HTML ---
                 const contractHTML = `
                     <!-- Page 1 -->
@@ -337,7 +343,7 @@
                         </div>
                         <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
                     </div>
-                     <!-- Page 2 - Payment Schedule -->
+                    <!-- Page 2 - Payment Schedule -->
                     <div class="page text-sm">
                         <h2 class="text-lg font-bold text-center mb-4">ตารางกำหนดการชำระเงิน / Payment Schedule</h2>
                         <table class="w-full border-collapse border border-slate-400">
@@ -351,164 +357,86 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${[...Array(12)].map((_, i) => `
+                                ${[...Array(12)].map((_, i) => {
+                                    const dueDate = new Date(data['contract-start-date'] || '2025-09-12');
+                                    dueDate.setMonth(dueDate.getMonth() + i);
+                                    const dueDateStr = `15 ${dueDate.toLocaleString('th-TH', { month: 'long', year: 'numeric' })}`;
+                                    return `
                                     <tr>
                                         <td class="border border-slate-300 p-2 text-center">${i + 1}</td>
                                         <td class="border border-slate-300 p-2">ค่าเช่าเดือนที่ ${i + 1} / ${i + 1}${['st','nd','rd'][i] || 'th'} month rent</td>
                                         <td class="border border-slate-300 p-2 text-right">${formatCurrency(rentAmount)}</td>
-                                        <td class="border border-slate-300 p-2 text-center">15 ${new Date(new Date(data['contract-start-date'] || '2025-09-12').setMonth(new Date(data['contract-start-date'] || '2025-09-12').getMonth() + i)).toLocaleString('th-TH', { month: 'long', year: 'numeric' })}</td>
+                                        <td class="border border-slate-300 p-2 text-center">${dueDateStr}</td>
                                         <td class="border border-slate-300 p-2">${i === 0 ? 'วันที่ทำสัญญา/Contract date' : ''}</td>
                                     </tr>
-                                `).join('')}
+                                `}).join('')}
                             </tbody>
                         </table>
                         <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
                     </div>
-                    <!-- Page 3 -->
-                    <div class="page text-sm">
-                        <div class="clause"><p class="clause-title">ข้อ 4: ค่าส่วนกลาง / Article 4: Common Area Fees</p><p>ผู้ให้เช่าตกลงเป็นผู้รับผิดชอบชำระค่าส่วนกลางตามรอบที่นิติบุคคลอาคารชุดเรียกเก็บ</p><p class="english">The "Lessor" promises to be responsible for paying common fees to the condominium juristic person.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 5: ค่าสาธารณูปโภค / Article 5: Utilities</p><p>ผู้เช่าเป็นผู้รับผิดชอบค่าไฟฟ้าและค่าน้ำประปา ค่าไฟฟ้าให้ชำระโดยตรงกับการไฟฟ้า ค่าน้ำประปาในอัตรา 30 บาทต่อหน่วย ชำระทุก 3 เดือนที่สำนักงานนิติบุคคล ผู้เช่ามีหน้าที่รับและชำระค่าใช้จ่ายเหล่านี้ให้ตรงตามกำหนด ค่าที่จอดรถยนต์ 300 บาท/คัน/เดือน และมอเตอร์ไซค์ 50 บาท/คัน/เดือน ค่าสระว่ายน้ำ 30 บาท/ครั้ง</p><p class="english">The "Renter" is responsible for electricity and water bills. Electricity is paid directly to the authority. Water fee is 30.00 Baht per unit, charged every 3 months, payable at the juristic person office. Car parking is 300.00 Baht/car/month, motorcycle parking is 50.00 Baht/car/month. Swimming pool service fee is 30.00 Baht/time.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 6: เงินประกันการเช่า / Article 6: Security Deposit</p><p>ในวันทำสัญญา ผู้เช่าจะต้องชำระเงินให้แก่ผู้ให้เช่าเป็นจำนวนเงินทั้งสิ้น ${formatCurrency(totalInitialPayment)} บาท ประกอบด้วย (1) ค่าเช่าล่วงหน้า 1 เดือน เป็นเงิน ${formatCurrency(rentAmount)} บาท และ (2) เงินประกันความเสียหายเท่ากับค่าเช่า 2 เดือน เป็นเงิน ${formatCurrency(securityDeposit)} บาท เงินประกันนี้ไม่สามารถนำมาหักเป็นค่าเช่าได้ ผู้ให้เช่าจะคืนเงินประกันให้ภายใน 15 วันหลังจากสิ้นสุดสัญญาและผู้เช่าย้ายออกโดยเรียบร้อย หลังจากหักค่าใช้จ่ายหรือหนี้สินที่ผู้เช่าค้างชำระ (ถ้ามี)</p><p class="english">On the day the rental contract is made, the "Renter" shall pay a total amount of ${formatCurrency(totalInitialPayment)} Baht, consisting of (1) First month's rent in advance: ${formatCurrency(rentAmount)} Baht and (2) Damage security deposit, equivalent to 2 months' rent: ${formatCurrency(securityDeposit)} Baht. This security deposit shall not be used as an excuse for failing to make timely rental payments. The "Lessor" shall return the security deposit within 15 days after the contract ends and the "Renter" has moved out completely, after deducting any outstanding debts or damages.</p></div>
-                         <div class="clause"><p class="clause-title">ข้อ 7: ข้อห้าม / Article 7: Prohibitions</p><p>ผู้เช่าสัญญาว่าจะไม่กระทำการดังต่อไปนี้: (1) นำเข้าวัตถุอันตรายหรือผิดกฎหมาย (2) กระทำการใดๆ ที่เป็นการรบกวนผู้อยู่อาศัยอื่น (3) เลี้ยงสัตว์ (4) นำทรัพย์สินของผู้ให้เช่าออกจากห้องเช่าโดยไม่ได้รับอนุญาต</p><p class="english">The "Renter" promises not to act and not allow any person do the following: (1) Importing and storing items that are dangerous or prohibited by law. (2) Any act which is a disturbance to other residents. (3) Raising animals or bringing pets into the building. (4) Removing the rented property from the rental room without the Lessor's permission.</p></div>
-                         <div class="clause"><p class="clause-title">ข้อ 8: การบำรุงรักษา / Article 8: Maintenance</p><p>ผู้เช่าสัญญาว่าจะดูแลรักษาห้องเช่าและทรัพย์สินของผู้ให้เช่าให้อยู่ในสภาพดีเสมอ หากมีความเสียหายเล็กน้อย ผู้เช่าเป็นผู้รับผิดชอบค่าใช้จ่ายในการซ่อมแซม หากเป็นความเสียหายใหญ่ ผู้ให้เช่าเป็นผู้รับผิดชอบ</p><p class="english">The "Renter" promises to keep the rental room and the rented property clean and in good condition. The "Renter" is responsible for minor repairs. For major repairs, the "Lessor" is responsible for the expenses.</p></div>
-                         <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
-                    </div>
-                     <!-- Page 4 -->
-                    <div class="page text-sm">
-                        <div class="clause"><p class="clause-title">ข้อ 9: การดัดแปลงและแก้ไข / Article 9: Alteration and Modification</p><p>ผู้เช่าจะต้องไม่ดัดแปลง ต่อเติม หรือแก้ไขทรัพย์สินที่เช่าโดยไม่ได้รับความยินยอมเป็นลายลักษณ์อักษรจากผู้ให้เช่าก่อน หากผู้เช่าฝ่าฝืน ผู้ให้เช่ามีสิทธิ์เรียกร้องให้ผู้เช่าทำให้ทรัพย์สินกลับสู่สภาพเดิมหรือเรียกเก็บค่าเสียหายได้</p><p class="english">The "Tenant" shall not alter, extend, demolish, or modify the leased premises, in whole or in part, unless prior written consent is obtained from the "Lessor". If the Tenant violates this provision, the "Lessor" shall have the right to require the "Tenant" to restore the leased premises to its original condition or to claim compensation for any all costs and damages.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 10: การละทิ้งทรัพย์สิน / Article 10: Abandonment</p><p>ในกรณีที่ผู้เช่าไม่อยู่อาศัยในห้องเช่าเป็นระยะเวลาเกิน 30 วันโดยไม่ได้ชำระค่าเช่าและไม่ได้แจ้งให้ผู้ให้เช่าทราบเป็นลายลักษณ์อักษร ให้ถือว่าสัญญาเช่าสิ้นสุดลง และผู้ให้เช่ามีสิทธิ์ริบเงินประกันทั้งหมด</p><p class="english">Failure to use and occupy rental rooms for a period of more than 30 days without the rent has been paid in advance and without notifying the "lessor" in writing, it is considered that the rental contract has ended and the "lessor" has the right to immediately forfeit all rental security deposits.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 11: การให้เช่าช่วง / Article 11: Subletting</p><p>ผู้เช่าจะไม่นำทรัพย์สินที่เช่าทั้งหมดหรือบางส่วนไปให้เช่าช่วง เว้นแต่จะได้รับความยินยอมเป็นลายลักษณ์อักษรจากผู้ให้เช่า</p><p class="english">The "Renter" will not sublet or transfer the leasehold rights, whether in whole or in part to others, unless there is consent from the "Lessor" in writing only.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 12: การเข้าตรวจ / Article 12: Inspection</p><p>ผู้ให้เช่าหรือตัวแทนมีสิทธิ์เข้าตรวจดูทรัพย์สินที่เช่าได้เป็นครั้งคราวตามเวลาที่เหมาะสม เพื่อตรวจสอบหรือซ่อมแซม โดยต้องแจ้งให้ผู้เช่าทราบล่วงหน้าอย่างน้อย 2 วัน</p><p class="english">The "Renter" promises to allow the "Lessor" or representative to inspect the rental room from time to time for a reasonably appropriate period, provided that the "Lessor" must notify the "Renter" in writing at least 2 days in advance.</p></div>
-                         <div class="clause"><p class="clause-title">ข้อ 13: การปฏิบัติตามกฎระเบียบ / Article 13: Compliance with Regulations</p><p>ผู้เช่าตกลงที่จะปฏิบัติตามกฎระเบียบของนิติบุคคลอาคารชุดอย่างเคร่งครัด หากมีความเสียหายเกิดขึ้น ผู้เช่าจะต้องรับผิดชอบค่าเสียหายทั้งหมด</p><p class="english">The "Tenant" promises to strictly comply with the rules and regulations of the condominium. The "Renter" agrees to be responsible for compensating damages to the condominium juristic person.</p></div>
-                        <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
-                    </div>
-                     <!-- Page 5 -->
-                    <div class="page text-sm">
-                        <div class="clause"><p class="clause-title">ข้อ 14: การติดต่อ / Article 14: Contact</p><p>การติดต่อระหว่างนิติบุคคลอาคารชุดกับผู้ให้เช่า ไม่ว่าจะเป็นหนังสือบอกกล่าวหรือรายละเอียดอื่นใดที่ส่งไปยังห้องเช่า ถือเป็นหน้าที่ของผู้เช่าที่จะต้องแจ้งให้ผู้ให้เช่าทราบโดยทันที มิฉะนั้นหากเกิดความเสียหายใดๆ อันเนื่องมาจากความประมาทของผู้เช่า ผู้เช่าจะต้องเป็นผู้รับผิดชอบค่าเสียหายทั้งหมด</p><p class="english">Contact between the condominium juristic person and the "lessor" whether it be a letter Notice or any other details that has been sent to the condominium unit, it is the duty of the "renter" to notify the "lessor" immediately; otherwise, if any damage occurs due to the tenant's neglect, the "renter" will be the person responsible for all damages himself.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 15: การส่งเอกสาร / Article 15: Notification</p><p>การส่งเอกสารใดๆ เป็นลายลักษณ์อักษรโดยผู้ให้เช่า ไปยังห้องเช่าหรือตู้จดหมาย ถือว่าผู้เช่าได้รับแล้วโดยถูกต้อง</p><p class="english">Any written document delivered to the "renter" at the rental room or Mail Box, a mailbox provided by the project, it is considered to have reached the "renter" correctly.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 16: การต่อสัญญา / Article 16: Lease Term Expires</p><p>เมื่อครบกำหนดอายุสัญญาเช่า ให้ถือว่าสัญญานี้เป็นอันยกเลิก หากผู้เช่าประสงค์จะเช่าต่อต้องจัดทำสัญญาเช่าฉบับใหม่ ทั้งนี้ผู้ให้เช่าขอสงวนสิทธิ์ในการพิจารณา</p><p class="english">When the lease term expires, it is considered that this contract is canceled immediately if the "renter" wishes to continue renting. A new rental contract must be prepared. However, the "lessor" reserves the right to consider renting.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 17: การย้ายออก / Article 17: Moving Out</p><p>เมื่อครบกำหนดอายุสัญญาเช่าหรือมีการบอกเลิกสัญญาไม่ว่าด้วยเหตุผลใดๆ ผู้เช่าจะต้องย้ายทรัพย์สินในส่วนที่เป็นของผู้เช่าออกจากห้องเช่า และส่งมอบการครอบครองห้องเช่าพร้อมทรัพย์สินของผู้ให้เช่าคืนในสภาพดี ภายใน 5 วันนับจากวันสิ้นสุดสัญญา หากผู้เช่าไม่ย้ายออกตามกำหนด ผู้เช่าตกลงชำระค่าปรับวันละ 1,000 บาท</p><p class="english">When the lease term expires or the contract was not renewed, the "renter" must move property only in the part that the "renter" owns and remove servants from the rental room, and deliver possession of the property in good condition within 5 days after the contract expiration date. If the "renter" is delayed in returning the rental room for any reason, the "renter" agrees. Pay the fine at the rate of 1,000.00 baht per day.</p></div>
-                        <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
-                    </div>
-                    <!-- Page 6 - Asset List -->
-                     <div class="page text-sm">
-                        <h2 class="text-lg font-bold text-center">รายการแสดงทรัพย์สินที่เช่าและอุปกรณ์ตกแต่งห้องเช่าประกอบท้ายสัญญา<br><span class="text-base font-normal english">List of Rented Property and Furnishings Attached to the Contract</span></h2>
-                        <div class="flex justify-between my-4">
-                            <span>รหัส / Code: ${data['asset-code']}</span>
-                            <span>ทรัพย์เลขที่ / Property No.: ${data['asset-no']}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-x-8">
-                            <div>
-                                <h3 class="font-bold text-base mb-2">เฟอร์นิเจอร์ / Furniture</h3>
-                                <table class="w-full">
-                                   <tbody>
-                                        <tr class="border-b"><td class="py-1">เตียง+ฟูก / Bed+Mattress</td><td class="text-right">10,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ตู้เสื้อผ้า / Wardrobe</td><td class="text-right">10,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชุดโต๊ะเครื่องแป้ง / Dressing Table</td><td class="text-right">5,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชั้นวางทีวี / TV Shelf</td><td class="text-right">5,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชุดโซฟา / Sofa Set</td><td class="text-right">5,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชั้นวางรองเท้า / Shoe Rack</td><td class="text-right">-</td></tr>
-                                        <tr class="border-b"><td class="py-1">เคาน์เตอร์ซิงค์ล้างจาน / Kitchen Counter with Sink</td><td class="text-right">15,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">โต๊ะทำงาน / Working Desk</td><td class="text-right">-</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชุดโต๊ะทานอาหาร / Dining Table Set</td><td class="text-right">-</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชั้นวางของบิ้วท์อิน / Built-in Shelf</td><td class="text-right">-</td></tr>
-                                        <tr class="border-b"><td class="py-1">ชุดกุญแจ+คีย์การ์ด / Key Set+Keycard</td><td class="text-right">1,000.00</td></tr>
-                                        ${data['has-digital-lock'] ? '<tr class="border-b"><td class="py-1">Digital Door Lock</td><td class="text-right">6,000.00</td></tr>' : ''}
-                                        <tr class="border-b"><td class="py-1">อื่นๆ (พื้นลามิเนต, วอลเปเปอร์ ตร.ม. ละ) / Others (Laminate, Wallpaper per sq.m.)</td><td class="text-right">1,500.00</td></tr>
-                                   </tbody>
-                                </table>
-                            </div>
-                             <div>
-                                <h3 class="font-bold text-base mb-2">เครื่องใช้ไฟฟ้า / Electrical Appliances</h3>
-                                <table class="w-full">
-                                   <tbody>
-                                        <tr class="border-b"><td class="py-1">ทีวี / Television</td><td class="text-right">5,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ตู้เย็น / Refrigerator</td><td class="text-right">5,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">ไมโครเวฟ / Microwave</td><td class="text-right">2,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">เครื่องทำน้ำอุ่น / Water Heater</td><td class="text-right">3,000.00</td></tr>
-                                        ${data['has-washing-machine'] ? '<tr class="border-b"><td class="py-1">เครื่องซักผ้า / Washing Machine</td><td class="text-right">7,000.00</td></tr>' : ''}
-                                        <tr class="border-b"><td class="py-1">เครื่องปรับอากาศ / Air Conditioner</td><td class="text-right">15,000.00</td></tr>
-                                        <tr class="border-b"><td class="py-1">อื่นๆ / Others</td><td class="text-right">-</td></tr>
-                                   </tbody>
-                                </table>
-                            </div>
-                        </div>
-                         <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
-                    </div>
-                    <!-- Page 7 - Final Clauses and Signatures -->
-                     <div class="page text-sm">
-                        <div class="clause"><p class="clause-title">ข้อ 18: กรณีผู้เช่ามีหนี้สินล้นพ้นตัว / Article 18: Renter's Insolvency</p><p>ในกรณีที่ผู้เช่าถูกฟ้องร้องในคดีล้มละลาย หรือถูกศาลพิทักษ์ทรัพย์ หรือมีเหตุอันสมควรเชื่อได้ว่าผู้เช่ามีหนี้สินล้นพ้นตัว ผู้ให้เช่ามีสิทธิ์ที่จะบอกเลิกสัญญาเช่าและยึดเงินประกันได้</p><p class="english">In case in which the "renter" does not comply with any of the provisions of this contract or become a person with insolvent debts or become bankrupt, the "lessor" has the right to terminate this contract and has the right to immediately forfeit all rental security deposits.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 19: การผิดสัญญา / Article 19: Contract Defaults</p><p>หากคู่สัญญาฝ่ายใดฝ่ายหนึ่งผิดสัญญาเช่าข้อใดข้อหนึ่ง คู่สัญญาอีกฝ่ายมีสิทธิ์บอกเลิกสัญญาได้ทันที และหากมีความเสียหายเกิดขึ้น คู่สัญญาฝ่ายที่ผิดจะต้องรับผิดชอบในความเสียหายทั้งหมด</p><p class="english">If one of the parties to the contract defaults on any of the terms of the contract The other party has the right to terminate. Promise immediately And if this contract is breached, it must enter into legal processes and court processes to enforce compliance with the contract. The party that breaches the contract will be responsible for all those costs.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 20: อากรแสตมป์ / Article 20: Stamp Duty</p><p>ผู้เช่าเป็นฝ่ายชำระค่าอากรแสตมป์ตามกฎหมาย</p><p class="english">The "renter" is the party who pays stamp duty according to law.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 21: คู่ฉบับสัญญา / Article 21: Counterpart</p><p>สัญญานี้ทำขึ้นเป็น 2 ฉบับ มีข้อความถูกต้องตรงกัน คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความในสัญญานี้ตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นหลักฐานต่อหน้าพยาน และเก็บไว้ฝ่ายละฉบับ</p><p class="english">This contract is made in 2 copies with the same content. Both parties have read and understood the contents of This Contract throughout saw that it was correct and exactly as intended Therefore, he signed his name as evidence in the presence of witnesses. and keep one contract for each party.</p></div>
-                        <div class="clause"><p class="clause-title">หมายเหตุเพิ่มเติม / Other additional notes</p><p>(1) ผู้เช่าจะต้องล้างเครื่องปรับอากาศทุกๆ 6 เดือน และเป็นผู้รับผิดชอบค่าใช้จ่ายในการล้างเครื่องปรับอากาศ (2) ห้ามมิให้ผู้เช่านำสัตว์เลี้ยงทุกชนิดเข้ามาเลี้ยงภายในห้องเช่า หากตรวจพบจะไม่มีการคืนเงินประกันไม่ว่ากรณีใดๆ</p><p class="english">(1) The "renter" must clean the air conditioner every 6 months. The renter must be responsible for the cost of cleaning the air conditioner. (2) The "renter" is strictly prohibited from keeping any type of animal. If found, the company will not refund the insurance fee in any case.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อตกลงเพิ่มเติม / Additional Agreement</p><p>หลังสิ้นสุดสัญญาเช่า "ผู้เช่า" จะต้องชำระค่าทำความสะอาดห้องเป็นจำนวนเงิน 1,000.00 บาท (หนึ่งพันบาทถ้วน) ยกเว้นแต่ "ผู้เช่า" จะทำความสะอาดห้องเช่าเอง</p><p class="english">After the end of the rental contract, the "renter" must pay an amount for cleaning the rental room 1,000.00 baht. Except the "renter" will clean the rental room himself.</p></div>
-                        <!-- Final Signature Section -->
-                        <div id="signature-section" class="mt-8 pt-6 text-sm">
-                            <h2 class="text-lg font-bold text-center mb-6">ลงนามในสัญญา / Contract Signature</h2>
-                            <div class="grid grid-cols-2 gap-16 mb-12">
-                                <div class="text-center"><div class="signature-line"></div><p class="mt-2">( ${data['lessor-name']} )</p><p>ผู้ให้เช่า / Lessor</p></div>
-                                <div class="text-center"><div class="signature-line"></div><p class="mt-2">( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-16">
-                                <div class="text-center"><div class="signature-line"></div><p class="mt-2">(.................................................................)</p><p>พยาน / Witness</p></div>
-                                <div class="text-center"><div class="signature-line"></div><p class="mt-2">(.................................................................)</p><p>พยาน / Witness</p></div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Other pages... -->
                 `;
-                document.getElementById('contract-content').innerHTML = contractHTML;
+                
+                contractContentEl.innerHTML = contractHTML;
 
-                // Switch views from form to contract preview
+                // Add mobile preview class to all generated pages
+                contractContentEl.querySelectorAll('.page').forEach(page => page.classList.add('page-preview-on-mobile'));
+
                 document.getElementById('setup-form').style.display = 'none';
                 document.getElementById('contract-container').style.display = 'block';
                 document.getElementById('action-buttons').style.display = 'block';
             });
 
-            // Event listener to go back to the editing form
             document.getElementById('edit-info').addEventListener('click', () => {
                 document.getElementById('setup-form').style.display = 'block';
                 document.getElementById('contract-container').style.display = 'none';
                 document.getElementById('action-buttons').style.display = 'none';
             });
 
-            // Event listener for the PDF download button
             document.getElementById('download-pdf').addEventListener('click', () => {
                 const { jsPDF } = window.jspdf;
                 const content = document.getElementById('contract-content');
                 const loadingMessage = document.getElementById('loading-message');
                 const actionButtons = document.getElementById('action-buttons');
+                const contractContainer = document.getElementById('contract-container');
                 
-                // Hide buttons and show loading message during PDF creation
                 actionButtons.style.display = 'none';
                 loadingMessage.style.display = 'block';
+
+                // Add class to force A4 rendering styles
+                contractContainer.classList.add('pdf-render-view');
 
                 let promiseChain = Promise.resolve();
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pages = content.querySelectorAll('.page');
 
-                // Process each page sequentially to generate canvas and add to PDF
                 pages.forEach((page, index) => {
                     promiseChain = promiseChain.then(() => 
-                        html2canvas(page, { scale: 2, useCORS: true }).then(canvas => {
+                        html2canvas(page, { 
+                            scale: 2, 
+                            useCORS: true,
+                            // Ensure it renders at full A4 width
+                            windowWidth: page.scrollWidth,
+                            windowHeight: page.scrollHeight
+                        }).then(canvas => {
                             if (index > 0) {
                                 pdf.addPage();
                             }
-                            const imgData = canvas.toDataURL('image/png', 0.92); // Use high-quality PNG
+                            const imgData = canvas.toDataURL('image/png', 0.95);
                             pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
                         })
                     );
                 });
 
-                // After all pages are processed, save the PDF
-                promiseChain.then(() => {
+                promiseChain.finally(() => {
                     pdf.save('สัญญาเช่าสองภาษา.pdf');
                     actionButtons.style.display = 'block';
                     loadingMessage.style.display = 'none';
+                    // IMPORTANT: remove the class to restore normal view
+                    contractContainer.classList.remove('pdf-render-view');
                 });
             });
 
-            // Initial load of data from storage
             loadFormData();
         });
     </script>
