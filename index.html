@@ -114,6 +114,9 @@
                     <input type="text" id="lessor-id" placeholder="เลขบัตรประชาชน (ID No.)" class="data-field p-2 border rounded">
                     <input type="text" id="lessor-phone" placeholder="เบอร์โทรศัพท์ (Phone No.)" class="data-field p-2 border rounded">
                     <textarea id="lessor-address" placeholder="ที่อยู่ (Address)" class="data-field p-2 border rounded md:col-span-2"></textarea>
+                    <input type="text" id="lessor-bank-name" placeholder="ธนาคาร (Bank Name)" class="data-field p-2 border rounded">
+                    <input type="text" id="lessor-account-name" placeholder="ชื่อบัญชี (Account Name)" class="data-field p-2 border rounded">
+                    <input type="text" id="lessor-account-number" placeholder="เลขที่บัญชี (Account Number)" class="data-field p-2 border rounded md:col-span-2">
                 </div>
             </div>
 
@@ -279,8 +282,9 @@
             };
 
             const formatCurrency = (num) => {
-                if (isNaN(num) || num === null || num === '') return '0.00';
-                return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const number = parseFloat(num);
+                if (isNaN(number)) return '0.00';
+                return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             };
 
             // --- Main Preview Logic ---
@@ -295,7 +299,9 @@
                     }
                 });
                 const fullRoomDetails = `ห้องเลขที่ ${data['room-select']} โครงการ ${data['contract-location']}`;
-                const rentAmountFormatted = formatCurrency(data['rent-amount']);
+                const rentAmount = parseFloat(data['rent-amount'] || 0);
+                const securityDeposit = rentAmount * 2;
+                const totalInitialPayment = rentAmount * 3;
 
                 // --- Generate Contract HTML ---
                 const contractHTML = `
@@ -310,7 +316,7 @@
                         <div class="space-y-4 text-sm">
                             <div class="clause"><p class="clause-title">ข้อ 1: ทรัพย์สินที่เช่า / Article 1: Rented Property</p><p>ผู้ให้เช่าตกลงให้เช่าและผู้เช่าตกลงเช่า ${fullRoomDetails} ต.ประชาธิปัตย์ อ.ธัญบุรี จ.ปทุมธานี 12130 เพื่อวัตถุประสงค์ในการอยู่อาศัยสำหรับผู้พักอาศัยไม่เกิน 2 คน</p><p class="english">The "Lessor" agrees to rent and "Renter" agrees to rent the property at ${fullRoomDetails}, Prachathipat, Thanyaburi, Pathum Thani 12130 for the sole purpose of residence with not exceeding 2 people.</p></div>
                             <div class="clause"><p class="clause-title">ข้อ 2: ระยะเวลาการเช่า / Article 2: Term of Agreement</p><p>สัญญามีระยะเวลา 12 เดือน เริ่มตั้งแต่วันที่ ${formatDate(data['contract-start-date'])} และสิ้นสุดในวันที่ ${formatDate(data['contract-end-date'])}</p><p class="english">This agreement has a period of 12 months, commencing on ${formatDate(data['contract-start-date'])} and ending on ${formatDate(data['contract-end-date'])}.</p></div>
-                            <div class="clause"><p class="clause-title">ข้อ 3: ค่าเช่าและการชำระเงิน / Article 3: Rent and Payment</p><p>ค่าเช่าตกลงกันในอัตราเดือนละ ${rentAmountFormatted} บาท ผู้เช่าจะต้องชำระค่าเช่าล่วงหน้าภายในวันที่ 5 ของแต่ละเดือน โดยโอนเงินเข้าบัญชีธนาคารกรุงเทพ ชื่อบัญชี พลัฏฐ์ นันท์นพันธ์ เลขที่ 878-0056761 หากผู้เช่าชำระค่าเช่าล่าช้ากว่ากำหนด ผู้เช่าตกลงจ่ายค่าปรับในอัตรา 200 บาทต่อวัน หากผู้เช่าไม่ชำระค่าเช่าและค่าปรับภายใน 15 วันนับจากวันครบกำหนด ผู้ให้เช่ามีสิทธิ์บอกเลิกสัญญา ยึดเงินประกันทั้งหมด และเข้าครอบครองทรัพย์สินได้ทันที</p><p class="english">The rent is agreed at ${rentAmountFormatted} Baht per month. The "Renter" shall pay the rent in advance by the 5th of each month by transferring money into Bangkok Bank account, Name: Palat Nanthanapan, A/C No: 878-0056761. In the event that the "Renter" pays the rent later than the due date, a late fee of 200.00 Baht per day will be applied. If the "Renter" does not pay the rent and fines in full within 15 days, the "Lessor" has the right to terminate the contract, confiscate all rental deposits, and repossess the property immediately.</p></div>
+                            <div class="clause"><p class="clause-title">ข้อ 3: ค่าเช่าและการชำระเงิน / Article 3: Rent and Payment</p><p>ค่าเช่าตกลงกันในอัตราเดือนละ ${formatCurrency(rentAmount)} บาท ผู้เช่าจะต้องชำระค่าเช่าล่วงหน้าภายในวันที่ 5 ของแต่ละเดือน โดยโอนเงินเข้าบัญชีธนาคาร ${data['lessor-bank-name']} ชื่อบัญชี ${data['lessor-account-name']} เลขที่ ${data['lessor-account-number']} หากผู้เช่าชำระค่าเช่าล่าช้ากว่ากำหนด ผู้เช่าตกลงจ่ายค่าปรับในอัตรา 200 บาทต่อวัน หากผู้เช่าไม่ชำระค่าเช่าและค่าปรับภายใน 15 วันนับจากวันครบกำหนด ผู้ให้เช่ามีสิทธิ์บอกเลิกสัญญา ยึดเงินประกันทั้งหมด และเข้าครอบครองทรัพย์สินได้ทันที</p><p class="english">The rent is agreed at ${formatCurrency(rentAmount)} Baht per month. The "Renter" shall pay the rent in advance by the 5th of each month by transferring money into ${data['lessor-bank-name']} account, Name: ${data['lessor-account-name']}, A/C No: ${data['lessor-account-number']}. In the event that the "Renter" pays the rent later than the due date, a late fee of 200.00 Baht per day will be applied. If the "Renter" does not pay the rent and fines in full within 15 days, the "Lessor" has the right to terminate the contract, confiscate all rental deposits, and repossess the property immediately.</p></div>
                         </div>
                         <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
                     </div>
@@ -332,7 +338,7 @@
                                     <tr>
                                         <td class="border border-slate-300 p-2 text-center">${i + 1}</td>
                                         <td class="border border-slate-300 p-2">ค่าเช่าเดือนที่ ${i + 1} / ${i + 1}${['st','nd','rd'][i] || 'th'} month rent</td>
-                                        <td class="border border-slate-300 p-2 text-right">${rentAmountFormatted}</td>
+                                        <td class="border border-slate-300 p-2 text-right">${formatCurrency(rentAmount)}</td>
                                         <td class="border border-slate-300 p-2 text-center">15 ${new Date(new Date(data['contract-start-date'] || '2025-09-12').setMonth(new Date(data['contract-start-date'] || '2025-09-12').getMonth() + i)).toLocaleString('th-TH', { month: 'long', year: 'numeric' })}</td>
                                         <td class="border border-slate-300 p-2">${i === 0 ? 'วันที่ทำสัญญา/Contract date' : ''}</td>
                                     </tr>
@@ -345,7 +351,7 @@
                     <div class="page text-sm">
                         <div class="clause"><p class="clause-title">ข้อ 4: ค่าส่วนกลาง / Article 4: Common Area Fees</p><p>ผู้ให้เช่าตกลงเป็นผู้รับผิดชอบชำระค่าส่วนกลางตามรอบที่นิติบุคคลอาคารชุดเรียกเก็บ</p><p class="english">The "Lessor" promises to be responsible for paying common fees to the condominium juristic person.</p></div>
                         <div class="clause"><p class="clause-title">ข้อ 5: ค่าสาธารณูปโภค / Article 5: Utilities</p><p>ผู้เช่าเป็นผู้รับผิดชอบค่าไฟฟ้าและค่าน้ำประปา ค่าไฟฟ้าให้ชำระโดยตรงกับการไฟฟ้า ค่าน้ำประปาในอัตรา 30 บาทต่อหน่วย ชำระทุก 3 เดือนที่สำนักงานนิติบุคคล ผู้เช่ามีหน้าที่รับและชำระค่าใช้จ่ายเหล่านี้ให้ตรงตามกำหนด ค่าที่จอดรถยนต์ 300 บาท/คัน/เดือน และมอเตอร์ไซค์ 50 บาท/คัน/เดือน ค่าสระว่ายน้ำ 30 บาท/ครั้ง</p><p class="english">The "Renter" is responsible for electricity and water bills. Electricity is paid directly to the authority. Water fee is 30.00 Baht per unit, charged every 3 months, payable at the juristic person office. Car parking is 300.00 Baht/car/month, motorcycle parking is 50.00 Baht/car/month. Swimming pool service fee is 30.00 Baht/time.</p></div>
-                        <div class="clause"><p class="clause-title">ข้อ 6: เงินประกันการเช่า / Article 6: Security Deposit</p><p>ผู้เช่าวางเงินประกันการเช่าให้แก่ผู้ให้เช่าเป็นจำนวนเงินทั้งสิ้น 15,000.00 บาท (หนึ่งหมื่นห้าพันบาทถ้วน) ประกอบด้วย (1) ค่าเช่าล่วงหน้า 1 เดือน ${rentAmountFormatted} บาท (2) เงินประกันความเสียหาย ${formatCurrency(15000 - (data['rent-amount'] || 0))} บาท เงินประกันนี้ไม่สามารถนำมาหักเป็นค่าเช่าได้ ผู้ให้เช่าจะคืนเงินประกันให้ภายใน 15 วันหลังจากสิ้นสุดสัญญาและผู้เช่าย้ายออกโดยเรียบร้อย หลังจากหักค่าใช้จ่ายหรือหนี้สินที่ผู้เช่าค้างชำระ (ถ้ามี)</p><p class="english">On the day the rental contract was made, the "Renter" deposited a security deposit of 15,000.00 Baht, consisting of (1) Rent for the first month: ${rentAmountFormatted} Baht and (2) Damage security deposit: ${formatCurrency(15000 - (data['rent-amount'] || 0))} Baht. This security deposit shall not be used as an excuse for failing to make timely rental payments. The "Lessor" shall return the security deposit within 15 days after the contract ends and the "Renter" has moved out completely, after deducting any outstanding debts or damages.</p></div>
+                        <div class="clause"><p class="clause-title">ข้อ 6: เงินประกันการเช่า / Article 6: Security Deposit</p><p>ในวันทำสัญญา ผู้เช่าจะต้องชำระเงินให้แก่ผู้ให้เช่าเป็นจำนวนเงินทั้งสิ้น ${formatCurrency(totalInitialPayment)} บาท ประกอบด้วย (1) ค่าเช่าล่วงหน้า 1 เดือน เป็นเงิน ${formatCurrency(rentAmount)} บาท และ (2) เงินประกันความเสียหายเท่ากับค่าเช่า 2 เดือน เป็นเงิน ${formatCurrency(securityDeposit)} บาท เงินประกันนี้ไม่สามารถนำมาหักเป็นค่าเช่าได้ ผู้ให้เช่าจะคืนเงินประกันให้ภายใน 15 วันหลังจากสิ้นสุดสัญญาและผู้เช่าย้ายออกโดยเรียบร้อย หลังจากหักค่าใช้จ่ายหรือหนี้สินที่ผู้เช่าค้างชำระ (ถ้ามี)</p><p class="english">On the day the rental contract is made, the "Renter" shall pay a total amount of ${formatCurrency(totalInitialPayment)} Baht, consisting of (1) First month's rent in advance: ${formatCurrency(rentAmount)} Baht and (2) Damage security deposit, equivalent to 2 months' rent: ${formatCurrency(securityDeposit)} Baht. This security deposit shall not be used as an excuse for failing to make timely rental payments. The "Lessor" shall return the security deposit within 15 days after the contract ends and the "Renter" has moved out completely, after deducting any outstanding debts or damages.</p></div>
                          <div class="clause"><p class="clause-title">ข้อ 7: ข้อห้าม / Article 7: Prohibitions</p><p>ผู้เช่าสัญญาว่าจะไม่กระทำการดังต่อไปนี้: (1) นำเข้าวัตถุอันตรายหรือผิดกฎหมาย (2) กระทำการใดๆ ที่เป็นการรบกวนผู้อยู่อาศัยอื่น (3) เลี้ยงสัตว์ (4) นำทรัพย์สินของผู้ให้เช่าออกจากห้องเช่าโดยไม่ได้รับอนุญาต</p><p class="english">The "Renter" promises not to act and not allow any person do the following: (1) Importing and storing items that are dangerous or prohibited by law. (2) Any act which is a disturbance to other residents. (3) Raising animals or bringing pets into the building. (4) Removing the rented property from the rental room without the Lessor's permission.</p></div>
                          <div class="clause"><p class="clause-title">ข้อ 8: การบำรุงรักษา / Article 8: Maintenance</p><p>ผู้เช่าสัญญาว่าจะดูแลรักษาห้องเช่าและทรัพย์สินของผู้ให้เช่าให้อยู่ในสภาพดีเสมอ หากมีความเสียหายเล็กน้อย ผู้เช่าเป็นผู้รับผิดชอบค่าใช้จ่ายในการซ่อมแซม หากเป็นความเสียหายใหญ่ ผู้ให้เช่าเป็นผู้รับผิดชอบ</p><p class="english">The "Renter" promises to keep the rental room and the rented property clean and in good condition. The "Renter" is responsible for minor repairs. For major repairs, the "Lessor" is responsible for the expenses.</p></div>
                          <div class="signature-container-per-page"><div class="signature-line-small"></div><p>( ${data['renter-name']} )</p><p>ผู้เช่า / Renter</p></div>
