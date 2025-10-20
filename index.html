@@ -176,6 +176,10 @@
                 <h2 class="text-xl font-semibold text-gray-700 mb-4">ข้อมูลสัญญา (Contract Details)</h2>
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-6">
                     <div class="md:col-span-2">
+                        <label for="contract-location" class="block text-sm font-medium text-gray-600 mb-1">ชื่อโครงการ (Project Name)</label>
+                        <input type="text" id="contract-location" placeholder="เช่น ลุมพินีทาวชิปรังสิตคลอง 1" class="data-field p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+                    <div class="md:col-span-2">
                         <label for="room-select" class="block text-sm font-medium text-gray-600 mb-1">ห้องเลขที่ (Room Number)</label>
                         <div class="flex items-center space-x-2">
                             <select id="room-select" class="data-field mt-1 block w-full p-3 border border-gray-300 rounded-lg h-[50px] focus:ring-2 focus:ring-blue-500 transition">
@@ -192,7 +196,6 @@
                         <label for="rent-amount" class="block text-sm font-medium text-gray-600 mb-1">ค่าเช่าต่อเดือน (Monthly Rent)</label>
                         <input type="number" id="rent-amount" placeholder="5000" class="data-field p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 transition">
                     </div>
-                     <input type="text" id="contract-location" class="data-field p-2 border rounded" value="ลุมพินีทาวชิปรังสิตคลอง 1" hidden>
                     <div>
                         <label for="asset-code" class="block text-sm font-medium text-gray-600 mb-1">ยูนิตที่ (Unit No.)</label>
                         <input type="text" id="asset-code" placeholder="ยูนิตที่" class="data-field p-3 border border-gray-200 bg-gray-100 rounded-lg w-full" readonly>
@@ -202,8 +205,12 @@
                         <input type="text" id="asset-no" placeholder="บ้านเลขที่" class="data-field p-3 border border-gray-200 bg-gray-100 rounded-lg w-full" readonly>
                     </div>
                     <div>
-                        <label for="contract-date" class="block text-sm font-medium text-gray-600 mb-1">วันที่ทำสัญญา (Contract Date)</label>
-                        <input type="date" id="contract-date" class="data-field p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 transition">
+                        <label for="contract-duration" class="block text-sm font-medium text-gray-600 mb-1">ระยะเวลาเช่า (Lease Duration)</label>
+                        <select id="contract-duration" class="data-field p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 transition">
+                            <option value="6">6 เดือน</option>
+                            <option value="12" selected>1 ปี (12 เดือน)</option>
+                            <option value="24">2 ปี (24 เดือน)</option>
+                        </select>
                     </div>
                     <div>
                         <label for="contract-start-date" class="block text-sm font-medium text-gray-600 mb-1">วันที่เริ่มสัญญา (Start Date)</label>
@@ -211,7 +218,7 @@
                     </div>
                     <div>
                         <label for="contract-end-date" class="block text-sm font-medium text-gray-600 mb-1">วันที่สิ้นสุดสัญญา (End Date)</label>
-                        <input type="date" id="contract-end-date" class="data-field p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 transition">
+                        <input type="date" id="contract-end-date" class="data-field p-3 border border-gray-200 bg-gray-100 rounded-lg w-full" readonly>
                     </div>
                 </div>
             </div>
@@ -477,6 +484,7 @@
                          roomSelect.dispatchEvent(new Event('change'));
                     }
                 }
+                 calculateEndDate(); // Calculate end date on initial load
             };
             
             formFields.forEach(field => {
@@ -536,6 +544,41 @@
                 }
             });
             
+            // --- Date Calculation Logic ---
+            const durationSelect = document.getElementById('contract-duration');
+            const startDateInput = document.getElementById('contract-start-date');
+            const endDateInput = document.getElementById('contract-end-date');
+
+            const calculateEndDate = () => {
+                const duration = parseInt(durationSelect.value, 10);
+                const startDateValue = startDateInput.value;
+
+                if (!startDateValue || isNaN(duration)) {
+                    endDateInput.value = '';
+                    return;
+                }
+
+                const startDate = new Date(startDateValue);
+                if (isNaN(startDate.getTime())) {
+                    endDateInput.value = '';
+                    return;
+                }
+                
+                // Add months and subtract one day to get the correct inclusive end date
+                const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + duration, startDate.getDate() - 1);
+                
+                // Format to YYYY-MM-DD for the input field
+                const year = endDate.getFullYear();
+                const month = String(endDate.getMonth() + 1).padStart(2, '0');
+                const day = String(endDate.getDate()).padStart(2, '0');
+                
+                endDateInput.value = `${year}-${month}-${day}`;
+                endDateInput.dispatchEvent(new Event('change')); // Trigger save to local storage
+            };
+
+            durationSelect.addEventListener('change', calculateEndDate);
+            startDateInput.addEventListener('change', calculateEndDate);
+
             const formatDate = (dateString) => {
                 if (!dateString) return '[..................]';
                 const date = new Date(dateString);
@@ -554,10 +597,15 @@
                 formFields.forEach(field => {
                     data[field.id] = field.value;
                 });
-                const fullRoomDetails = `ห้องเลขที่ ${data['room-select'] || '[........]'} โครงการ ${data['contract-location']}`;
+                
+                const contractTitle = `สัญญาเช่าโครงการ ${data['contract-location'] || '[........]'} / ยูนิต ${data['asset-code'] || '[........]'}`;
+                const contractDuration = data['contract-duration'] || 12;
+                const fullRoomDetails = `ห้องเลขที่ ${data['room-select'] || '[........]'} โครงการ ${data['contract-location'] || '[........]'}`;
                 const rentAmount = parseFloat(data['rent-amount'] || 0);
                 const securityDeposit = rentAmount * 2;
                 const totalInitialPayment = rentAmount * 3;
+                
+                const today = new Date().toISOString().slice(0, 10);
 
                 // --- Generate Furniture and Appliances HTML for Contract ---
                 const selectedFurnitureHTML = furnitureAndAppliances
@@ -577,9 +625,9 @@
                 const contractHTML = `
                     <!-- Page 1 -->
                     <div class="page">
-                        <div class="text-center mb-6"><h1 class="text-xl font-bold">สัญญาเช่า / Residential Lease Agreement</h1></div>
+                        <div class="text-center mb-6"><h1 class="text-xl font-bold">${contractTitle}<br><span class="text-lg font-normal">Residential Lease Agreement</span></h1></div>
                         <p class="text-sm">เขียนที่/Write at: ${data['contract-location'] || '[..................]'}</p>
-                        <p class="text-sm">วันที่/Date: ${formatDate(data['contract-date'])}</p>
+                        <p class="text-sm">วันที่/Date: ${formatDate(today)}</p>
                         <div class="mt-4 text-sm"><p>สัญญานี้ทำขึ้นระหว่าง</p><p class="english">This agreement is made between</p></div>
                         <div class="my-4 p-4 border rounded text-sm"><p><strong class="font-bold">ผู้ให้เช่า (Lessor):</strong> ${data['lessor-name'] || '[..................]'} อายุ/Age ${data['lessor-age'] || '[..]'} ปี</p><p>เลขบัตร/ID No.: ${data['lessor-id'] || '[..................]'} โทร/Tel: ${data['lessor-phone'] || '[..................]'}</p><p>ที่อยู่/Address: ${data['lessor-address'] || '[..................]'}</p></div>
                         <div class="my-4 p-4 border rounded text-sm"><p><strong class="font-bold">ผู้เช่า (Renter):</strong> ${data['renter-name'] || '[..................]'} อายุ/Age ${data['renter-age'] || '[..]'} ปี</p><p>เลขบัตร/ID No.: ${data['renter-id'] || '[..................]'} โทร/Tel: ${data['renter-phone'] || '[..................]'}</p><p>ที่อยู่/Address: ${data['renter-address'] || '[..................]'}</p></div>
@@ -602,7 +650,7 @@
                     <!-- Page 2 -->
                      <div class="page text-sm">
                         <div class="space-y-4 text-sm">
-                           <div class="clause"><p class="clause-title">ข้อ 2: ระยะเวลาการเช่า / Article 2: Term of Agreement</p><p>สัญญามีระยะเวลา 12 เดือน เริ่มตั้งแต่วันที่ ${formatDate(data['contract-start-date'])} และสิ้นสุดในวันที่ ${formatDate(data['contract-end-date'])}</p><p class="english">This agreement has a period of 12 months, commencing on ${formatDate(data['contract-start-date'])} and ending on ${formatDate(data['contract-end-date'])}.</p></div>
+                           <div class="clause"><p class="clause-title">ข้อ 2: ระยะเวลาการเช่า / Article 2: Term of Agreement</p><p>สัญญามีระยะเวลา ${contractDuration} เดือน เริ่มตั้งแต่วันที่ ${formatDate(data['contract-start-date'])} และสิ้นสุดในวันที่ ${formatDate(data['contract-end-date'])}</p><p class="english">This agreement has a period of ${contractDuration} months, commencing on ${formatDate(data['contract-start-date'])} and ending on ${formatDate(data['contract-end-date'])}.</p></div>
                             <div class="clause"><p class="clause-title">ข้อ 3: ค่าเช่าและการชำระเงิน / Article 3: Rent and Payment</p><p>ค่าเช่าตกลงกันในอัตราเดือนละ ${formatCurrency(rentAmount)} บาท ผู้เช่าจะต้องชำระค่าเช่าล่วงหน้าภายในวันที่ 5 ของแต่ละเดือน โดยโอนเงินเข้าบัญชีธนาคาร ${data['lessor-bank-name'] || '[..................]'} ชื่อบัญชี ${data['lessor-account-name'] || '[..................]'} เลขที่ ${data['lessor-account-number'] || '[..................]'} หากผู้เช่าชำระค่าเช่าล่าช้ากว่ากำหนด ผู้เช่าตกลงจ่ายค่าปรับในอัตรา 200 บาทต่อวัน หากผู้เช่าไม่ชำระค่าเช่าและค่าปรับภายใน 15 วันนับจากวันครบกำหนด ผู้ให้เช่ามีสิทธิ์บอกเลิกสัญญา ยึดเงินประกันทั้งหมด และเข้าครอบครองทรัพย์สินได้ทันที</p><p class="english">The rent is agreed at ${formatCurrency(rentAmount)} Baht per month. The "Renter" shall pay the rent in advance by the 5th of each month by transferring money into ${data['lessor-bank-name'] || '[..................]'} account, Name: ${data['lessor-account-name'] || '[..................]'}, A/C No: ${data['lessor-account-number'] || '[..................]'}. In the event that the "Renter" pays the rent later than the due date, a late fee of 200.00 Baht per day will be applied. If the "Renter" does not pay the rent and fines in full within 15 days, the "Lessor" has the right to terminate the contract, confiscate all rental deposits, and repossess the property immediately.</p></div>
                         </div>
                         <h2 class="text-lg font-bold text-center my-4">ตารางกำหนดการชำระเงิน / Payment Schedule</h2>
@@ -617,17 +665,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${[...Array(12)].map((_, i) => {
-                                    const dueDate = new Date(data['contract-start-date'] || new Date());
-                                    dueDate.setMonth(dueDate.getMonth() + i);
-                                    const dueDateStr = `15 ${dueDate.toLocaleString('th-TH', { month: 'long', year: 'numeric' })}`;
+                                ${[...Array(parseInt(contractDuration))].map((_, i) => {
+                                    const startDate = new Date(data['contract-start-date'] || new Date());
+                                    const dueDate = new Date(startDate);
+                                    dueDate.setMonth(startDate.getMonth() + i);
+                                    const dayOfMonth = startDate.getDate();
+                                    const dueDateStr = `${dayOfMonth} ${dueDate.toLocaleString('th-TH', { month: 'long', year: 'numeric' })}`;
+
                                     return `
                                     <tr>
                                         <td class="border border-slate-300 p-2 text-center">${i + 1}</td>
                                         <td class="border border-slate-300 p-2">ค่าเช่าเดือนที่ ${i + 1} / ${i + 1}${['st','nd','rd'][i] || 'th'} month rent</td>
                                         <td class="border border-slate-300 p-2 text-right">${formatCurrency(rentAmount)}</td>
                                         <td class="border border-slate-300 p-2 text-center">${data['contract-start-date'] ? dueDateStr : '[..................]'}</td>
-                                        <td class="border border-slate-300 p-2">${i === 0 ? 'วันที่ทำสัญญา/Contract date' : ''}</td>
+                                        <td class="border border-slate-300 p-2">${i === 0 ? 'ชำระวันเริ่มสัญญา' : ''}</td>
                                     </tr>
                                 `}).join('')}
                             </tbody>
@@ -672,7 +723,9 @@
                     </div>
                     <!-- Page 6 - Asset List -->
                     <div class="page text-sm">
-                        <h2 class="text-lg font-bold text-center">รายการแสดงทรัพย์สินที่เช่าและอุปกรณ์ตกแต่งห้องเช่าประกอบท้ายสัญญา<br><span class="text-base font-normal english">List of Rented Property and Furnishings Attached to the Contract</span></h2>
+                        <h2 class="text-lg font-bold text-center">รายการแสดงทรัพย์สินที่เช่าและอุปกรณ์ตกแต่งห้องเช่าประกอบท้ายสัญญา<br>
+                        <span class="text-base font-normal">โครงการ ${data['contract-location'] || '[........]'}</span><br>
+                        <span class="text-base font-normal english">List of Rented Property and Furnishings Attached to the Contract</span></h2>
                         <div class="flex justify-between my-4">
                             <span>ยูนิตที่ / Unit No.: ${data['asset-code'] || '[........]'}</span>
                             <span>บ้านเลขที่ / Address No.: ${data['asset-no'] || '[........]'}</span>
